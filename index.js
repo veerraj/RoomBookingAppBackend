@@ -5,6 +5,8 @@ var cors = require('cors')
 var bcrypt = require('bcryptjs')
 var jwt = require('jsonwebtoken')
 var path=require('path')
+const stripe = require('stripe')('sk_test_bcK9DORiQsA6h96N52EeMVJX00Ii4YDS3R');
+
 
 var app = express();
 var con = mysql.createConnection({
@@ -13,9 +15,13 @@ var con = mysql.createConnection({
     user: 'k7k9vXrkXQ',
     password: 'QRtKa1ghOb',
     database: "k7k9vXrkXQ"
+    //    host:'localhost',
+    //    user:'root',
+    //    password:'',
+    //    database:'newuser'
 });
 
-// app.use(cors({ origin: "http://localhost:4200" }));
+app.use(cors({ origin: "http://localhost:4200" }));
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({
   limit: '50mb',
@@ -30,7 +36,7 @@ app.use(bodyParser.urlencoded({
 con.connect(function (err) {
     if (err) throw err;
     console.log("Connected!");
-    //   var sql = "CREATE TABLE roominfo (location VARCHAR(255), contact VARCHAR(255),price INT,description VARCHAR(255),image LONGTEXT)";
+    //   var sql = "CREATE TABLE roombooking  (name VARCHAR(255),email VARCHAR(255), contact VARCHAR(255),address VARCHAR(255),price INT,bookingdate DATE,Idproof VARCHAR(255))";
     //   con.query(sql, function (err, result) {
     //     if (err) throw err;
     //     console.log("Table created");
@@ -162,8 +168,50 @@ app.put('/rooms/:id',(req,res)=>{
     });
 })
 
+app.post('/payme', async (req, res, next) => {
+
+    console.log('the body is', req.body)
+    console.log(req.body.name)
+    const charge = stripe.charges.create({
+  
+      amount: req.body.amount,
+      currency: 'INR',
+      source: req.body.token
+    }, (err, charge) => {
+      if (err) throw err;
+      else{
+            var sql = `UPDATE roombooking SET payment_status='completed' WHERE name ='${req.body.name}'`;
+                con.query(sql, function (err, result) {
+                    if (err) throw err;
+                    //console.log("1 record inserted");
+                    //res.header('Content-Type','application/json')
+                    //res.send("room inserted")
+
+                });
+            res.json({
+                success: true,
+                message: "Payment Done"
+            })
+        }
+    });
+  })
+
+  app.post('/roombooking',(req,res)=>{
+     
+     console.log(req.body)
+     var sql = `INSERT INTO roombooking (name,email,contact,address,price,bookingdate,Idpno,Idproof,payment_status) VALUES ('${req.body.name}',
+      '${req.body.email}','${req.body.contact}',
+      '${req.body.address}','${req.body.price}','${req.body.bookingdate}','${req.body.idno}','${req.body.idproof}','pending')`;
+        con.query(sql, function (err, result) {
+            if (err) throw err;
+            //console.log("1 record inserted");
+            //res.header('Content-Type','application/json')
+            res.send("room inserted")
+
+        });
 
 
+  })
 app.use(express.static(path.join(__dirname + '/roomBookingSystem')));
 
 app.get('/*', function (req, res) {
